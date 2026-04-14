@@ -3,7 +3,7 @@ from enum import Enum
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame  # type: ignore :is not installed
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class ZoneType(str, Enum):
@@ -14,6 +14,7 @@ class ZoneType(str, Enum):
 
 
 class Hub(BaseModel):
+    model_config = ConfigDict(frozen=True)
     name: str  #ok
     x: int  #ok
     y: int  #ok
@@ -39,3 +40,9 @@ class Hub(BaseModel):
             except ValueError:
                 raise ValueError(f"'{v}' is not a valid pygame color name")
         return v
+
+    def get_cost(self) -> int:
+        if self.zone_type == ZoneType.restricted:
+            return 2
+        return 1
+

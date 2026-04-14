@@ -94,7 +94,6 @@ def validate_and_build_hub(
     max_drones: int = 1
     zone: ZoneType = ZoneType.normal
 
-    # nao verifica duplicados
     for data in meta_data:
         if data[0] == 'color':
             color = data[1]
@@ -153,6 +152,8 @@ def validate_and_build_connection(
 
 def validate_map(map_path: str) -> Map:
     nb_drones: int | None = None
+    start_hub: Hub | None = None
+    end_hub: Hub | None = None
     hubs: list[Hub] = []
     connections: list[Connection] = []
     seen_coords: set[tuple[int, int]] = set()
@@ -189,23 +190,16 @@ def validate_map(map_path: str) -> Map:
                     raise ValueError(
                         f"  'nb_drones' defined more than once, line: {line_no}"
                     )
-                try:
-                    nb_drones = int(values.strip())
-                except ValueError:
-                    raise ValueError(
-                        f"  line {line_no}: 'nb_drones' must be a valid integer"
-                    )
-                if nb_drones < 1:
-                    raise ValueError(
-                        f"  line {line_no}: 'nb_drones' must be a positive integer, got {nb_drones}"
-                    )
+                nb_drones = int(values.strip())
 
             elif key in valid_hub_keys:
                 try:
                     if key == "start_hub":
                         new_hub = validate_and_build_hub(values.strip(), is_start=True)
+                        start_hub = new_hub
                     elif key == "end_hub":
                         new_hub = validate_and_build_hub(values.strip(), is_end=True)
+                        end_hub = new_hub
                     else:
                         new_hub = validate_and_build_hub(values.strip())
                 except ValueError as e:
@@ -242,15 +236,12 @@ def validate_map(map_path: str) -> Map:
 
     if nb_drones is None:
         raise ValueError("  Missing 'nb_drones' definition")
+    if start_hub is None:
+        raise ValueError("  Missing 'start_hub' definition")
+    if end_hub is None:
+        raise ValueError("  Missing 'end_hub' definition")
 
-    start_count = sum(1 for h in hubs if h.is_start)
-    end_count = sum(1 for h in hubs if h.is_end)
-    if start_count != 1:
-        raise ValueError(f"  Expected exactly one start_hub, found {start_count}")
-    if end_count != 1:
-        raise ValueError(f"  Expected exactly one end_hub, found {end_count}")
-
-    return Map(nb_drones=nb_drones, hubs=hubs, connections=connections)
+    return Map(nb_drones=nb_drones, start_hub=start_hub, end_hub=end_hub, hubs=hubs, connections=connections)
             
 
             
