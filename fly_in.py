@@ -2,6 +2,7 @@ import os
 import sys
 from parser.validate_maps import validate_map
 from solver.solver import solver
+from turns.simulation import Simulator
 
 
 if __name__ == "__main__":
@@ -18,8 +19,15 @@ if __name__ == "__main__":
     try:
         map = validate_map(map_path)
         path = solver(map)
-        for h in path.hubs:
-            print(h.name)
+        simulator = Simulator(map, path)
+        turns, output = simulator.simulate()
+        for t in turns:
+            print("\n".join(
+                f"{hub.name}:[{', '.join(f'D{d.drone_id}' for d in drones)}]"
+                for hub, drones in t.items()
+            ))
+            print("-----")
+        print(f"Turns: {len(turns)}")
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)

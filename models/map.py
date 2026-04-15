@@ -17,17 +17,17 @@ class Map(BaseModel):
         raise ValueError(f"{name} not in map")
 
 
-    def get_connections(self, hub: Hub) -> list[Connection]:
-        res: list[Connection] = []
+    def get_connection(self, hub1: Hub, hub2: Hub) -> Connection:
         for c in self.connections:
-            if c.zone1 == hub.name or c.zone2 == hub.name:
-                res.append(c)
-        if res == []:
-            raise ValueError (
-                f"{hub} does not have any connection on this map"
-                )
-        return res
-    
+            if c.zone1 == hub1.name or c.zone2 == hub1.name:
+                if c.zone1 == hub2 or c.zone2 == hub2:
+                    return c 
+        raise ValueError (
+            f"hubs '{hub1.name}', '{hub2.name} do not have any connections"
+            " on this map"
+            )
+
+
     def get_neighbours(self, hub: Hub) -> list[Hub]:
         res: list[Hub] = []
         for c in self.connections:
@@ -39,6 +39,6 @@ class Map(BaseModel):
                 res.append(neighbour)
         if res == []:
             raise ValueError(
-                f"{hub} does not have any neighbours on this map"
+                f"hub '{hub.name}' does not have any neighbours on this map"
             )
         return res

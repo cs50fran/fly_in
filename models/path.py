@@ -1,4 +1,5 @@
 from models.hub import Hub
+from models.connection import Connection
 from pydantic import BaseModel, model_validator
 
 

@@ -51,7 +51,8 @@ valid_meta_types = {
 def validate_and_build_hub(
         values: str,
         is_start: bool = False,
-        is_end: bool = False
+        is_end: bool = False,
+        max_drones_override: int | None = None
     ) -> Hub:
     parts = values.split(maxsplit=3)
 
@@ -102,6 +103,7 @@ def validate_and_build_hub(
         elif data[0] == "zone":
             zone = ZoneType(data[1])
 
+    max_drones = max_drones_override if max_drones_override is not None else max_drones
     return Hub(
         name=name, x=int(x), y=int(y), zone_type=zone,
         color=color, max_drones=max_drones,
@@ -198,7 +200,7 @@ def validate_map(map_path: str) -> Map:
                         new_hub = validate_and_build_hub(values.strip(), is_start=True)
                         start_hub = new_hub
                     elif key == "end_hub":
-                        new_hub = validate_and_build_hub(values.strip(), is_end=True)
+                        new_hub = validate_and_build_hub(values.strip(), is_end=True, max_drones_override=nb_drones)
                         end_hub = new_hub
                     else:
                         new_hub = validate_and_build_hub(values.strip())
