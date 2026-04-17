@@ -1,23 +1,23 @@
 # validate_map(map) -> bool:
 
-    # first line must be nb_drones: <positive integer>
+# first line must be nb_drones: <positive integer>
 
-    # must have exactly one start_hub and one end_hub
+# must have exactly one start_hub and one end_hub
 
-    # each zone must have a unique name (no dashes, no spaces)
-    # each zone must have valid integer coordinates
+# each zone must have a unique name (no dashes, no spaces)
+# each zone must have valid integer coordinates
 
-    # zone type must be one of: normal, blocked, restricted, priority
-    # capacity values (max_drones, max_link_capacity) must be positive integers
+# zone type must be one of: normal, blocked, restricted, priority
+# capacity values (max_drones, max_link_capacity) must be positive integers
 
-    # connections must reference only already-defined zones
-    # no duplicate connections (a-b and b-a are the same)
+# connections must reference only already-defined zones
+# no duplicate connections (a-b and b-a are the same)
 
-    # on any error: stop and report line number + cause
+# on any error: stop and report line number + cause
 
 
 """
-receive map_path which in fly_in.py will be sys.arg[3] or something
+receive map_path which in fly_in.py will be sys.arg[2] or something
 here we assume is good
 validation of path later in main
 """
@@ -47,18 +47,20 @@ valid_meta_types = {
 }
 
 
-
 def validate_and_build_hub(
-        values: str,
-        is_start: bool = False,
-        is_end: bool = False,
-        max_drones_override: int | None = None
-    ) -> Hub:
+            values: str,
+            max_drones_override: int | None = None
+        ) -> Hub:
+
     parts = values.split(maxsplit=3)
 
     if len(parts) == 3:
         name, x, y = parts
-        return Hub(name=name, x=int(x), y=int(y), is_start=is_start, is_end=is_end)
+        return Hub(
+            name=name,
+            x=int(x),
+            y=int(y),
+        )
     elif len(parts) == 4:
         name, x, y, meta = parts
     else:
@@ -103,18 +105,19 @@ def validate_and_build_hub(
         elif data[0] == "zone":
             zone = ZoneType(data[1])
 
-    max_drones = max_drones_override if max_drones_override is not None else max_drones
+    if max_drones_override is not None:
+        max_drones = max_drones_override
+
     return Hub(
         name=name, x=int(x), y=int(y), zone_type=zone,
         color=color, max_drones=max_drones,
-        is_start=is_start, is_end=is_end
         )
 
 
 def validate_and_build_connection(
-        values: str,
-        known_hubs: list[str],
-    ) -> Connection:
+            values: str,
+            known_hubs: list[str],
+        ) -> Connection:
     parts = values.split()
 
     if len(parts) == 1:
@@ -149,7 +152,10 @@ def validate_and_build_connection(
     if zone2 not in known_hubs:
         raise ValueError(f"Unknown hub '{zone2}' in connection")
 
-    return Connection(zone1=zone1, zone2=zone2, max_link_capacity=max_link_capacity)
+    return Connection(
+        zone1=zone1,
+        zone2=zone2,
+        max_link_capacity=max_link_capacity)
 
 
 def validate_map(map_path: str) -> Map:
@@ -186,21 +192,27 @@ def validate_map(map_path: str) -> Map:
             if key == "nb_drones":
                 if not first_real_line:
                     raise ValueError(
-                        f"  'nb_drones' must be the first line, line: {line_no}"
+                        f"  'nb_drones' must be the first line,"
+                        f"line: {line_no}"
                     )
                 if nb_drones is not None:
                     raise ValueError(
-                        f"  'nb_drones' defined more than once, line: {line_no}"
+                        f"  'nb_drones' defined more than once, "
+                        f"line: {line_no}"
                     )
                 nb_drones = int(values.strip())
 
             elif key in valid_hub_keys:
                 try:
                     if key == "start_hub":
-                        new_hub = validate_and_build_hub(values.strip(), is_start=True)
+                        new_hub = validate_and_build_hub(
+                            values.strip())
                         start_hub = new_hub
                     elif key == "end_hub":
-                        new_hub = validate_and_build_hub(values.strip(), is_end=True, max_drones_override=nb_drones)
+                        new_hub = validate_and_build_hub(
+                            values.strip(),
+                            max_drones_override=nb_drones
+                            )
                         end_hub = new_hub
                     else:
                         new_hub = validate_and_build_hub(values.strip())
@@ -209,12 +221,14 @@ def validate_map(map_path: str) -> Map:
 
                 if new_hub.name in seen_hub_names:
                     raise ValueError(
-                        f"  Duplicate hub name '{new_hub.name}', line: {line_no}"
+                        f"  Duplicate hub name '{new_hub.name}', "
+                        f"line: {line_no}"
                     )
                 coords = (new_hub.x, new_hub.y)
                 if coords in seen_coords:
                     raise ValueError(
-                        f"  Duplicate hub coordinates {coords}, line: {line_no}"
+                        f"  Duplicate hub coordinates {coords}, "
+                        f"line: {line_no}"
                     )
                 seen_hub_names.add(new_hub.name)
                 seen_coords.add(coords)
@@ -223,13 +237,18 @@ def validate_map(map_path: str) -> Map:
             elif key == 'connection':
                 known_hub_names = [h.name for h in hubs]
                 try:
-                    new_conn = validate_and_build_connection(values.strip(), known_hub_names)
+                    new_conn = validate_and_build_connection(
+                        values.strip(),
+                        known_hub_names
+                    )
                 except ValueError as e:
                     raise ValueError(f"  line {line_no}: {e}") from e
                 conn_key = frozenset([new_conn.zone1, new_conn.zone2])
                 if conn_key in seen_connections:
                     raise ValueError(
-                        f"  Duplicate connection '{new_conn.zone1}-{new_conn.zone2}', line: {line_no}"
+                        f"  Duplicate connection "
+                        f"'{new_conn.zone1}-{new_conn.zone2}',"
+                        f" line: {line_no}"
                     )
                 seen_connections.add(conn_key)
                 connections.append(new_conn)
@@ -243,11 +262,5 @@ def validate_map(map_path: str) -> Map:
     if end_hub is None:
         raise ValueError("  Missing 'end_hub' definition")
 
-    return Map(nb_drones=nb_drones, start_hub=start_hub, end_hub=end_hub, hubs=hubs, connections=connections)
-            
-
-            
-
-
-
-
+    return Map(nb_drones=nb_drones, start_hub=start_hub, end_hub=end_hub,
+               hubs=hubs, connections=connections)

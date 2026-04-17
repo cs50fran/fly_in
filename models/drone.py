@@ -7,7 +7,7 @@ class Drone:
         self.drone_id: int = drone_id
         self.path: Path = path
         self.path_index: int = 0
-        self.in_transit: bool = False  # True on first turn crossing a restricted zone
+        self.in_transit: bool = False  # True on 1st pass to restricted zone
         self.arrived: bool = False
 
     @property

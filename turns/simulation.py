@@ -10,20 +10,25 @@ class Simulator:
         self.path = path
         self.nb_drones = self.map.nb_drones
         self.hub_occ: dict[Hub, int] = {h: 0 for h in self.map.hubs}
-        self.hub_occ[self.map.start_hub] = self.nb_drones  # all drones start here
+        # all drones start here
+        self.hub_occ[self.map.start_hub] = self.nb_drones
 
-    def simulate(self) -> tuple[list[dict[Hub, list[Drone]]], list[str]]:
+    def _snapshot(self, drones: list[Drone]) -> dict[Hub, list[int]]:
+        """Snapshot current drone positions as hub -> list of drone_ids."""
+        snap: dict[Hub, list[int]] = {h: [] for h in self.map.hubs}
+        for drone in drones:
+            snap[drone.current_hub].append(drone.drone_id)
+        return snap
+
+    def simulate(self) -> tuple[list[dict[Hub, list[int]]], list[str]]:
         drones = [Drone(i + 1, self.path) for i in range(self.nb_drones)]
-        turns: list[dict[Hub, list[Drone]]] = []
+        turns: list[dict[Hub, list[int]]] = []
         output: list[str] = []
-        start = self.map.start_hub
         end = self.map.end_hub
 
-        #  1st snapshot, b4 movement
-        initial: dict[Hub, list[Drone]] = {h: [] for h in self.map.hubs}
-        initial[start] = list(drones)
-        turns.append(initial)
-        
+        # 1st snapshot, before any movement
+        turns.append(self._snapshot(drones))
+
         while self.hub_occ.get(end, 0) < self.nb_drones:
             turn_moves: list[str] = []
 
@@ -47,12 +52,12 @@ class Simulator:
                     self.hub_occ[drone.current_hub] += 1
                     continue
 
-
                 # move drone
                 self.hub_occ[drone.current_hub] -= 1
                 drone.move()
                 turn_moves.append(
-                    f"D{drone.drone_id}-{self.path.hubs[drone.path_index].name}"
+                    f"D{drone.drone_id}-"
+                    f"{self.path.hubs[drone.path_index].name}"
                 )
                 if not drone.in_transit:
                     self.hub_occ[drone.current_hub] += 1
@@ -60,12 +65,7 @@ class Simulator:
             if turn_moves:
                 output.append(" ".join(turn_moves))
 
-            # snapshot: hub -> list of drones currently there
-            snapshot: dict[Hub, list[Drone]] = {h: [] for h in self.map.hubs}
-            for drone in drones:
-                if not drone.arrived:
-                    snapshot[drone.current_hub].append(drone)
-                snapshot[end] = [d for d in drones if d.arrived]
-            turns.append(snapshot)
+            # snapshot after all drones have moved this turn
+            turns.append(self._snapshot(drones))
 
         return turns, output

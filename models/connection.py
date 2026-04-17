@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class Connection(BaseModel):
@@ -8,4 +8,3 @@ class Connection(BaseModel):
 
     def has_hub(self, hub_name: str) -> bool:
         return hub_name in (self.zone1, self.zone2)
-

@@ -16,18 +16,6 @@ class Map(BaseModel):
                 return hub
         raise ValueError(f"{name} not in map")
 
-
-    def get_connection(self, hub1: Hub, hub2: Hub) -> Connection:
-        for c in self.connections:
-            if c.zone1 == hub1.name or c.zone2 == hub1.name:
-                if c.zone1 == hub2 or c.zone2 == hub2:
-                    return c 
-        raise ValueError (
-            f"hubs '{hub1.name}', '{hub2.name} do not have any connections"
-            " on this map"
-            )
-
-
     def get_neighbours(self, hub: Hub) -> list[Hub]:
         res: list[Hub] = []
         for c in self.connections:
@@ -42,3 +30,14 @@ class Map(BaseModel):
                 f"hub '{hub.name}' does not have any neighbours on this map"
             )
         return res
+
+
+    # def get_connection(self, hub1: Hub, hub2: Hub) -> Connection:
+    #     for c in self.connections:
+    #         if c.zone1 == hub1.name or c.zone2 == hub1.name:
+    #             if c.zone1 == hub2 or c.zone2 == hub2:
+    #                 return c
+    #     raise ValueError (
+    #         f"hubs '{hub1.name}', '{hub2.name} do not have any connections"
+    #         " on this map"
+    #         )

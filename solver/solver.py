@@ -6,7 +6,7 @@ from models.path import Path
 
 
 def solver(map: Map) -> Path:
-    
+
     start = map.start_hub
     end = map.end_hub
 
@@ -18,14 +18,14 @@ def solver(map: Map) -> Path:
 
     while pq:
         cost, priority_cost, _, current_hub = heappop(pq)
-        if current_hub in visited: 
+        if current_hub in visited:
             continue
         visited.add(current_hub)
         if current_hub == end:
             break
 
         for n in map.get_neighbours(current_hub):
-            if n in visited: 
+            if n in visited:
                 continue
             if n.zone_type == ZoneType.blocked:
                 continue
@@ -47,5 +47,5 @@ def solver(map: Map) -> Path:
         current = came_from[current]
     path.append(start)
     path.reverse()
-    
+
     return Path(hubs=path)
