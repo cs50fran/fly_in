@@ -32,13 +32,14 @@ if __name__ == "__main__":
         map = validate_map(map_path)
         path = solver(map)
         simulator = Simulator(map, path)
-        turns, output = simulator.simulate()
+        turns, in_transit_turns, output = simulator.simulate()
         for t in output:
             print(t)
-        visualiser = Visualizer(map, path, turns)
+        visualiser = Visualizer(map, path, turns, in_transit_turns)
 
         if visual:
             visualiser.run()
+
 
     except ValueError as e:
         print(f"Error: {e}")

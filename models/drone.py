@@ -40,6 +40,8 @@ class Drone:
 
         if next.zone_type == ZoneType.restricted:
             # first turn: mark in transit, don't advance index yet
+            # Acho que eu tenho de mudar isto. 
+            #Ele devia libertar a zona logo e ocupar a conexão. 
             self.in_transit = True
         else:
             self.path_index += 1

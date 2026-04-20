@@ -32,12 +32,11 @@ class Map(BaseModel):
         return res
 
 
-    # def get_connection(self, hub1: Hub, hub2: Hub) -> Connection:
-    #     for c in self.connections:
-    #         if c.zone1 == hub1.name or c.zone2 == hub1.name:
-    #             if c.zone1 == hub2 or c.zone2 == hub2:
-    #                 return c
-    #     raise ValueError (
-    #         f"hubs '{hub1.name}', '{hub2.name} do not have any connections"
-    #         " on this map"
-    #         )
+    def get_connection(self, hub1: Hub, hub2: Hub) -> Connection:
+        for c in self.connections:
+            if c.zone1 == hub1.name or c.zone2 == hub1.name:
+                if c.zone1 == hub2.name or c.zone2 == hub2.name:
+                    return c
+        raise ValueError(
+            f"hubs '{hub1.name}', '{hub2.name}' do not have any connections on this map"
+        )

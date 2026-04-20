@@ -1,7 +1,7 @@
 import pygame
 from models.map import Map
 from models.path import Path
-from models.hub import Hub
+from models.hub import Hub, ZoneType
 
 pygame.font.init()
 pygame.init()
@@ -9,7 +9,9 @@ pygame.init()
 # COLORS
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREY = (200, 200, 200)
+ORANGE = (255, 165, 0)
+TURN_BAR_BG = (50, 50, 50)
+TURN_BAR_FG = (100, 200, 255)
 
 # WINDOW DIMENSIONS
 WIDTH, HEIGHT = 1400, 800
@@ -18,7 +20,7 @@ WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Fly-in")
 
 # CONNECTIONS INFO
-EDGE_COLOR = (0, 0, 0)
+EDGE_COLOR = (200, 200, 200)
 EDGE_SIZE = 15
 
 # HUB SIZE — maybe adjust according to number of hubs
@@ -26,6 +28,10 @@ HUB_SIZE = 20
 
 FPS = 60
 FRAMES_PER_TURN = 60  # advance one turn per second
+
+# FONTS
+FONT_SMALL = pygame.font.SysFont("monospace", 12)
+FONT_MEDIUM = pygame.font.SysFont("monospace", 16)
 
 # DRONE INFO
 DRONE_SIZE = (30, 30)
@@ -38,9 +44,10 @@ SPACE = pygame.transform.scale(pygame.image.load("assets/space.png"), (WIDTH, HE
 
 
 class Visualizer:
-    def __init__(self, map: Map, path: Path, turns: list[dict[Hub, list[int]]]) -> None:
+    def __init__(self, map: Map, path: Path, turns: list[dict[Hub, list[int]]], in_transit_turns: list[set[int]]) -> None:
         self.map = map
         self.turns = turns
+        self.in_transit_turns = in_transit_turns
         self.reshaped_map = self._reshape_map()
         self.current_turn = 0
         self.frame_counter = 0
@@ -76,12 +83,31 @@ class Visualizer:
         for c in self.map.connections:
             from_pos = names_and_coords[c.zone1]
             to_pos = names_and_coords[c.zone2]
-            pygame.draw.line(WIN, GREY, from_pos, to_pos, 5)
+            pygame.draw.line(WIN, EDGE_COLOR, from_pos, to_pos, 5)
 
     def _draw_map(self) -> None:
         for hub, pos in self.reshaped_map.items():
             color = pygame.Color(hub.color if hub.color else "white")
+            if hub.zone_type == ZoneType.restricted:
+                pygame.draw.circle(WIN, ORANGE, pos, HUB_SIZE + 7, 3)
             pygame.draw.circle(WIN, color, pos, HUB_SIZE)
+
+    def _draw_hub_names(self) -> None:
+        for hub, pos in self.reshaped_map.items():
+            label = FONT_SMALL.render(hub.name, True, WHITE)
+            WIN.blit(label, (pos[0] - label.get_width() // 2, pos[1] + HUB_SIZE + 5))
+
+    def _draw_turn_counter(self) -> None:
+        total = len(self.turns) - 1
+        label = FONT_MEDIUM.render(f"Turn {self.current_turn} / {total}", True, WHITE)
+        WIN.blit(label, (20, 12))
+
+        bar_x, bar_y = 20, 35
+        bar_w, bar_h = WIDTH - 40, 10
+        fill_w = int(bar_w * (self.current_turn / total)) if total > 0 else 0
+        pygame.draw.rect(WIN, TURN_BAR_BG, (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+        if fill_w > 0:
+            pygame.draw.rect(WIN, TURN_BAR_FG, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
 
     def _drone_positions(self, turn_index: int) -> dict[int, Hub]:
         """Build a drone_id -> hub map for a given turn snapshot."""
@@ -98,25 +124,29 @@ class Visualizer:
             if self.current_turn > 0
             else current_positions
         )
+        in_transit = self.in_transit_turns[self.current_turn]
 
         for drone_id, current_hub in current_positions.items():
             prev_hub = prev_positions.get(drone_id, current_hub)
+            color = BLACK if drone_id in in_transit else WHITE
 
             if prev_hub == current_hub:
                 # drone didn't move this turn — draw stationary
                 coords = self.reshaped_map[current_hub]
-                pygame.draw.circle(WIN, WHITE, coords, 5)
+                pygame.draw.circle(WIN, color, coords, 5)
             else:
                 # drone moved — lerp from previous hub to current hub
                 start_pos = pygame.math.Vector2(self.reshaped_map[prev_hub])
                 end_pos = pygame.math.Vector2(self.reshaped_map[current_hub])
                 curr_pos = start_pos.lerp(end_pos, t)
-                pygame.draw.circle(WIN, WHITE, curr_pos, 5)
+                pygame.draw.circle(WIN, color, curr_pos, 5)
 
     def _draw_window(self, t: float) -> None:
         WIN.blit(SPACE, (0, 0))
         self._draw_connections()
         self._draw_map()
+        self._draw_hub_names()
+        self._draw_turn_counter()
         self._draw_drones(t)
         pygame.display.update()
 
@@ -137,7 +167,7 @@ class Visualizer:
                     if event.key == pygame.K_LEFT and self.current_turn > 0:
                         self.current_turn -= 1
                         self.frame_counter = 0
-                    if event.key == pygame.K_p:
+                    if event.key == pygame.K_SPACE:
                         self.playing = not self.playing
                         self.frame_counter = 0
 
