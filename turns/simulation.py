@@ -1,8 +1,7 @@
 from models.path import Path
 from models.map import Map
-from models.hub import Hub
+from models.hub import Hub, ZoneType
 from models.drone import Drone
-from models.connection import Connection
 
 
 class Simulator:
@@ -11,7 +10,6 @@ class Simulator:
         self.path = path
         self.nb_drones = self.map.nb_drones
         self.hub_occ: dict[Hub, int] = {h: 0 for h in self.map.hubs}
-        # all drones start here
         self.hub_occ[self.map.start_hub] = self.nb_drones
 
     def _snapshot(self, drones: list[Drone]) -> tuple[dict[Hub, list[int]], set[int]]:
@@ -23,18 +21,6 @@ class Simulator:
             if drone.in_transit:
                 in_transit.add(drone.drone_id)
         return snap, in_transit
-    
-    @property
-    def _path_connections(self) -> list[Connection]:
-        hubs = self.path.hubs
-        map = self.map
-        connections = self.map.connections
-
-        path_connections = []
-        for i in range(len(hubs) - 1):
-            path_connections.append(map.get_connection(hubs[i], hubs[i + 1]))
-        return path_connections
-
 
     def simulate(self) -> tuple[list[dict[Hub, list[int]]], list[set[int]], list[str]]:
         drones = [Drone(i + 1, self.path) for i in range(self.nb_drones)]
@@ -42,8 +28,9 @@ class Simulator:
         in_transit_turns: list[set[int]] = []
         output: list[str] = []
         end = self.map.end_hub
+        # Number of drones currently in transit TO each hub (connection occupancy)
+        transiting_to: dict[Hub, int] = {h: 0 for h in self.map.hubs}
 
-        # 1st snapshot, before any movement
         snap, in_transit = self._snapshot(drones)
         turns.append(snap)
         in_transit_turns.append(in_transit)
@@ -55,43 +42,45 @@ class Simulator:
                 if drone.arrived:
                     continue
 
-                next_hub = drone.next_hub
+                if drone.in_transit:
+                    # Phase 2: complete restricted transit — check hub capacity, then arrive
+                    # walrus
+                    if (next_hub := drone.next_hub) is None:
+                        continue
+                    if self.hub_occ.get(next_hub, 0) >= next_hub.max_drones:
+                        continue  # hub still full, wait one more turn in transit
+                    transiting_to[next_hub] -= 1
+                    drone.move()  # advances path_index, clears in_transit
+                    self.hub_occ[drone.current_hub] += 1
+                    turn_moves.append(f"D{drone.drone_id}-{drone.current_hub.name}")
+                    continue
 
+                next_hub = drone.next_hub
                 if next_hub is None:
                     continue
 
-                # check capacity of next hub
-                if self.hub_occ.get(next_hub, 0) >= next_hub.max_drones:
-                    continue  # hub full, drone waits
-
-                # drone in transit (restricted hub turn 2) — must complete move
-                if drone.in_transit:
+                if next_hub.zone_type == ZoneType.restricted:
+                    # Phase 1: check connection capacity (not hub capacity)
+                    # The drone won't arrive until next turn, when the hub may be free
+                    if transiting_to.get(next_hub, 0) >= 1:  # max_link_capacity default = 1
+                        continue  # connection already occupied by another drone
+                    origin = drone.current_hub.name
+                    self.hub_occ[drone.current_hub] -= 1
+                    transiting_to[next_hub] += 1
+                    drone.move()  # sets in_transit=True, path_index unchanged
+                    turn_moves.append(f"D{drone.drone_id}-{origin}-{next_hub.name}")
+                else:
+                    # Normal move: check hub capacity
+                    if self.hub_occ.get(next_hub, 0) >= next_hub.max_drones:
+                        continue  # next hub full, drone waits
                     self.hub_occ[drone.current_hub] -= 1
                     drone.move()
                     self.hub_occ[drone.current_hub] += 1
-                    continue
-
-                # move drone
-                self.hub_occ[drone.current_hub] -= 1
-                drone.move()
-                if drone.in_transit:
-                    turn_moves.append(
-                        f"D{drone.drone_id}-"
-                        f"{self.path.hubs[drone.path_index].name}-"
-                        f"{self.path.hubs[drone.path_index + 1].name}"
-                    )
-                else:
-                    turn_moves.append(
-                        f"D{drone.drone_id}-"
-                        f"{self.path.hubs[drone.path_index].name}"
-                    )
-                if not drone.in_transit:
-                    self.hub_occ[drone.current_hub] += 1
+                    turn_moves.append(f"D{drone.drone_id}-{drone.current_hub.name}")
 
             if turn_moves:
                 output.append(" ".join(turn_moves))
 
-            # snapshot after all drones moved this turn
             snap, in_transit = self._snapshot(drones)
             turns.append(snap)
             in_transit_turns.append(in_transit)

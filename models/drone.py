@@ -7,7 +7,7 @@ class Drone:
         self.drone_id: int = drone_id
         self.path: Path = path
         self.path_index: int = 0
-        self.in_transit: bool = False  # True on 1st pass to restricted zone
+        self.in_transit: bool = False  # True while drone is on the connection toward a restricted hub
         self.arrived: bool = False
 
     @property
@@ -25,12 +25,12 @@ class Drone:
         if self.arrived:
             return
 
-        # second turn of restricted zone crossing — complete the move
         if self.in_transit:
+            # Phase 2: complete the restricted transit — arrive at the hub
             self.path_index += 1
-            self.in_transit = False
             if self.path_index == len(self.path.hubs) - 1:
                 self.arrived = True
+            self.in_transit = False
             return
 
         next = self.next_hub
@@ -39,11 +39,11 @@ class Drone:
             return
 
         if next.zone_type == ZoneType.restricted:
-            # first turn: mark in transit, don't advance index yet
-            # Acho que eu tenho de mudar isto. 
-            #Ele devia libertar a zona logo e ocupar a conexão. 
+            # Phase 1: start restricted transit — leave current hub but don't arrive yet
             self.in_transit = True
-        else:
-            self.path_index += 1
-            if self.path_index == len(self.path.hubs) - 1:
-                self.arrived = True
+            return  # path_index NOT incremented
+
+        # Normal move
+        self.path_index += 1
+        if self.path_index == len(self.path.hubs) - 1:
+            self.arrived = True

@@ -99,15 +99,27 @@ class Visualizer:
 
     def _draw_turn_counter(self) -> None:
         total = len(self.turns) - 1
-        label = FONT_MEDIUM.render(f"Turn {self.current_turn} / {total}", True, WHITE)
+        # While animating, show the destination turn immediately
+        displayed = (
+            self.current_turn + 1
+            if self.frame_counter > 0 and self.current_turn < total
+            else self.current_turn
+        )
+        label = FONT_MEDIUM.render(f"Turn {displayed} / {total}", True, WHITE)
         WIN.blit(label, (20, 12))
 
         bar_x, bar_y = 20, 35
         bar_w, bar_h = WIDTH - 40, 10
-        fill_w = int(bar_w * (self.current_turn / total)) if total > 0 else 0
+        fill_w = int(bar_w * (displayed / total)) if total > 0 else 0
         pygame.draw.rect(WIN, TURN_BAR_BG, (bar_x, bar_y, bar_w, bar_h), border_radius=4)
         if fill_w > 0:
             pygame.draw.rect(WIN, TURN_BAR_FG, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+
+    # ADD drone_counter
+
+    # ADD is playing visualizer
+
+    # If we could freeze the exact position would be amazing
 
     def _drone_positions(self, turn_index: int) -> dict[int, Hub]:
         """Build a drone_id -> hub map for a given turn snapshot."""
@@ -118,26 +130,33 @@ class Visualizer:
         return result
 
     def _draw_drones(self, t: float) -> None:
+        # t=0: draw at current turn (static rest position)
+        # t>0: lerp toward next turn (animation in progress)
         current_positions = self._drone_positions(self.current_turn)
-        prev_positions = (
-            self._drone_positions(self.current_turn - 1)
-            if self.current_turn > 0
+        next_positions = (
+            self._drone_positions(self.current_turn + 1)
+            if self.current_turn + 1 < len(self.turns)
             else current_positions
         )
-        in_transit = self.in_transit_turns[self.current_turn]
+        # While animating, use the destination snapshot's in_transit so the drone
+        # turns black when approaching a restricted hub, not when leaving it.
+        if self.frame_counter > 0 and self.current_turn + 1 < len(self.in_transit_turns):
+            in_transit = self.in_transit_turns[self.current_turn + 1]
+        else:
+            in_transit = self.in_transit_turns[self.current_turn]
 
         for drone_id, current_hub in current_positions.items():
-            prev_hub = prev_positions.get(drone_id, current_hub)
+            next_hub = next_positions.get(drone_id, current_hub)
             color = BLACK if drone_id in in_transit else WHITE
 
-            if prev_hub == current_hub:
-                # drone didn't move this turn — draw stationary
+            if current_hub == next_hub:
+                # drone doesn't move next turn — draw stationary
                 coords = self.reshaped_map[current_hub]
                 pygame.draw.circle(WIN, color, coords, 5)
             else:
-                # drone moved — lerp from previous hub to current hub
-                start_pos = pygame.math.Vector2(self.reshaped_map[prev_hub])
-                end_pos = pygame.math.Vector2(self.reshaped_map[current_hub])
+                # drone moves next turn — lerp from current hub toward next hub
+                start_pos = pygame.math.Vector2(self.reshaped_map[current_hub])
+                end_pos = pygame.math.Vector2(self.reshaped_map[next_hub])
                 curr_pos = start_pos.lerp(end_pos, t)
                 pygame.draw.circle(WIN, color, curr_pos, 5)
 
@@ -146,8 +165,8 @@ class Visualizer:
         self._draw_connections()
         self._draw_map()
         self._draw_hub_names()
-        self._draw_turn_counter()
         self._draw_drones(t)
+        self._draw_turn_counter()
         pygame.display.update()
 
     def run(self) -> None:
@@ -180,5 +199,7 @@ class Visualizer:
                     else:
                         self.playing = False
 
+            # t=0 when paused — drones rest at current turn positions
+            # t>0 when animating — drones lerp toward next turn positions
             t = self.frame_counter / FRAMES_PER_TURN
             self._draw_window(t)
