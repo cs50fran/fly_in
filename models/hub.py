@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
+
 class ZoneType(str, Enum):
     normal = "normal"
     blocked = "blocked"

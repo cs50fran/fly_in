@@ -7,7 +7,8 @@ class Drone:
         self.drone_id: int = drone_id
         self.path: Path = path
         self.path_index: int = 0
-        self.in_transit: bool = False  # True while drone is on the connection toward a restricted hub
+        # True while drone is on the connection toward a restricted hub
+        self.in_transit: bool = False
         self.arrived: bool = False
 
     @property
@@ -39,7 +40,7 @@ class Drone:
             return
 
         if next.zone_type == ZoneType.restricted:
-            # Phase 1: start restricted transit — leave current hub but don't arrive yet
+            # Phase 1: start restricted transit, don't arrive yet
             self.in_transit = True
             return  # path_index NOT incremented
 

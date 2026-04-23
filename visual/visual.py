@@ -35,16 +35,24 @@ FONT_MEDIUM = pygame.font.SysFont("monospace", 16)
 
 # DRONE INFO
 DRONE_SIZE = (30, 30)
-DRONE = pygame.transform.scale(pygame.image.load("assets/drone.png"), DRONE_SIZE)
+DRONE = pygame.transform.scale(
+    pygame.image.load("assets/drone.png"), DRONE_SIZE
+)
 DRONE = pygame.transform.rotate(DRONE, 45)
 DRONE.fill(WHITE, special_flags=pygame.BLEND_RGB_MULT)
 
 # BACKGROUND
-SPACE = pygame.transform.scale(pygame.image.load("assets/space.png"), (WIDTH, HEIGHT))
+SPACE = pygame.transform.scale(
+    pygame.image.load("assets/space.png"), (WIDTH, HEIGHT)
+)
 
 
 class Visualizer:
-    def __init__(self, map: Map, path: Path, turns: list[dict[Hub, list[int]]], in_transit_turns: list[set[int]]) -> None:
+    def __init__(
+        self, map: Map, path: Path,
+        turns: list[dict[Hub, list[int]]],
+        in_transit_turns: list[set[int]]
+    ) -> None:
         self.map = map
         self.turns = turns
         self.in_transit_turns = in_transit_turns
@@ -56,7 +64,6 @@ class Visualizer:
             hub.name: coords for hub, coords in self.reshaped_map.items()
             }
 
-
     def _reshape_map(self) -> dict[Hub, tuple[int, int]]:
         coords = [(hub.x, hub.y) for hub in self.map.hubs]
 
@@ -65,13 +72,18 @@ class Visualizer:
         min_y = min(coords, key=lambda c: c[1])[1]
         max_y = max(coords, key=lambda c: c[1])[1]
 
-        x_scale = (WIDTH - 2 * PADDING) / ((max_x - min_x) if max_x != min_x else 1)
-        y_scale = (HEIGHT - 2 * PADDING) / ((max_y - min_y) if max_y != min_y else 1)
+        x_range = (max_x - min_x) if max_x != min_x else 1
+        y_range = (max_y - min_y) if max_y != min_y else 1
+        x_scale = (WIDTH - 2 * PADDING) / x_range
+        y_scale = (HEIGHT - 2 * PADDING) / y_range
 
         hub_positions: dict[Hub, tuple[int, int]] = {}
         for hub in self.map.hubs:
             x = int(PADDING + (hub.x - min_x) * x_scale)
-            y = int(HEIGHT // 2 if min_y == max_y else PADDING + (hub.y - min_y) * y_scale)
+            if min_y == max_y:
+                y = HEIGHT // 2
+            else:
+                y = int(PADDING + (hub.y - min_y) * y_scale)
             hub_positions[hub] = (x, y)
 
         return hub_positions
@@ -95,7 +107,8 @@ class Visualizer:
     def _draw_hub_names(self) -> None:
         for hub, pos in self.reshaped_map.items():
             label = FONT_SMALL.render(hub.name, True, WHITE)
-            WIN.blit(label, (pos[0] - label.get_width() // 2, pos[1] + HUB_SIZE + 5))
+            lx = pos[0] - label.get_width() // 2
+            WIN.blit(label, (lx, pos[1] + HUB_SIZE + 5))
 
     def _draw_turn_counter(self) -> None:
         total = len(self.turns) - 1
@@ -111,9 +124,11 @@ class Visualizer:
         bar_x, bar_y = 20, 35
         bar_w, bar_h = WIDTH - 40, 10
         fill_w = int(bar_w * (displayed / total)) if total > 0 else 0
-        pygame.draw.rect(WIN, TURN_BAR_BG, (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+        bg_rect = (bar_x, bar_y, bar_w, bar_h)
+        pygame.draw.rect(WIN, TURN_BAR_BG, bg_rect, border_radius=4)
         if fill_w > 0:
-            pygame.draw.rect(WIN, TURN_BAR_FG, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+            fg_rect = (bar_x, bar_y, fill_w, bar_h)
+            pygame.draw.rect(WIN, TURN_BAR_FG, fg_rect, border_radius=4)
 
     # ADD drone_counter
 
@@ -138,10 +153,11 @@ class Visualizer:
             if self.current_turn + 1 < len(self.turns)
             else current_positions
         )
-        # While animating, use the destination snapshot's in_transit so the drone
-        # turns black when approaching a restricted hub, not when leaving it.
-        if self.frame_counter > 0 and self.current_turn + 1 < len(self.in_transit_turns):
-            in_transit = self.in_transit_turns[self.current_turn + 1]
+        # While animating, use destination in_transit snapshot so the drone
+        # turns black when approaching a restricted hub, not when leaving.
+        next_turn = self.current_turn + 1
+        if self.frame_counter > 0 and next_turn < len(self.in_transit_turns):
+            in_transit = self.in_transit_turns[next_turn]
         else:
             in_transit = self.in_transit_turns[self.current_turn]
 
@@ -180,7 +196,8 @@ class Visualizer:
                     pygame.quit()
                     return
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT and self.current_turn < len(self.turns) - 1:
+                    at_end = self.current_turn >= len(self.turns) - 1
+                    if event.key == pygame.K_RIGHT and not at_end:
                         self.current_turn += 1
                         self.frame_counter = 0
                     if event.key == pygame.K_LEFT and self.current_turn > 0:

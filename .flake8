@@ -1,0 +1,2 @@
+[flake8]
+exclude = fly_venv,.pytest_cache,tests/.pytest_cache

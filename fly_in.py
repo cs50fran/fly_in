@@ -40,7 +40,6 @@ if __name__ == "__main__":
         if visual:
             visualiser.run()
 
-
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
