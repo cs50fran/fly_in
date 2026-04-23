@@ -110,7 +110,9 @@ class Visualizer:
             c.hsva = (hue, 100, 100, 100)
             start_angle = math.tau / segments * i
             stop_angle = math.tau / segments * (i + 1)
-            pygame.draw.arc(WIN, c, arc_rect, start_angle, stop_angle, HUB_SIZE)
+            pygame.draw.arc(
+                WIN, c, arc_rect, start_angle, stop_angle, HUB_SIZE
+            )
 
     def _draw_map(self) -> None:
         for hub, pos in self.reshaped_map.items():

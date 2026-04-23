@@ -1,6 +1,6 @@
 import os
 import sys
-from validate_maps import validate_map
+from validate_map import validate_map
 from solver import solver
 from simulation import Simulator
 from visual import Visualizer

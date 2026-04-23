@@ -32,7 +32,7 @@ class Simulator:
         in_transit_turns: list[set[int]] = []
         output: list[str] = []
         end = self.map.end_hub
-        # Drones currently in transit TO each hub (connection occupancy)
+        # Drones currently in transit to each hub (connection occupancy)
         transiting_to: dict[Hub, int] = {h: 0 for h in self.map.hubs}
 
         snap, in_transit = self._snapshot(drones)
@@ -59,8 +59,7 @@ class Simulator:
                     turn_moves.append(move)
                     continue
 
-                next_hub = drone.next_hub
-                if next_hub is None:
+                if (next_hub := drone.next_hub) is None:
                     continue
 
                 if next_hub.zone_type == ZoneType.restricted:

@@ -1,6 +1,6 @@
 import pytest
 import os
-from validate_maps import validate_map
+from validate_map import validate_map
 
 ERROR_MAPS_DIR = os.path.join(os.path.dirname(__file__), "../maps/error")
 
