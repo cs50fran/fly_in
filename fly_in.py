@@ -1,9 +1,9 @@
 import os
 import sys
-from parser.validate_maps import validate_map
-from solver.solver import solver
-from turns.simulation import Simulator
-from visual.visual import Visualizer
+from validate_maps import validate_map
+from solver import solver
+from simulation import Simulator
+from visual import Visualizer
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import pygame
+import math
 from models.map import Map
 from models.path import Path
 from models.hub import Hub, ZoneType
@@ -97,12 +98,29 @@ class Visualizer:
             to_pos = names_and_coords[c.zone2]
             pygame.draw.line(WIN, EDGE_COLOR, from_pos, to_pos, 5)
 
+    def _draw_rainbow_hub(self, pos: tuple[int, int]) -> None:
+        segments = 12
+        arc_rect = pygame.Rect(
+            pos[0] - HUB_SIZE, pos[1] - HUB_SIZE,
+            HUB_SIZE * 2, HUB_SIZE * 2
+        )
+        for i in range(segments):
+            hue = (360 / segments) * i
+            c = pygame.Color(0, 0, 0)
+            c.hsva = (hue, 100, 100, 100)
+            start_angle = math.tau / segments * i
+            stop_angle = math.tau / segments * (i + 1)
+            pygame.draw.arc(WIN, c, arc_rect, start_angle, stop_angle, HUB_SIZE)
+
     def _draw_map(self) -> None:
         for hub, pos in self.reshaped_map.items():
-            color = pygame.Color(hub.color if hub.color else "white")
-            if hub.zone_type == ZoneType.restricted:
-                pygame.draw.circle(WIN, ORANGE, pos, HUB_SIZE + 7, 3)
-            pygame.draw.circle(WIN, color, pos, HUB_SIZE)
+            if hub.color == 'rainbow':
+                self._draw_rainbow_hub(pos)
+            else:
+                color = pygame.Color(hub.color if hub.color else "white")
+                if hub.zone_type == ZoneType.restricted:
+                    pygame.draw.circle(WIN, ORANGE, pos, HUB_SIZE + 7, 3)
+                pygame.draw.circle(WIN, color, pos, HUB_SIZE)
 
     def _draw_hub_names(self) -> None:
         for hub, pos in self.reshaped_map.items():

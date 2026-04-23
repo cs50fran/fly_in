@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
 .DS_Store
-fly_venv/
+\.fly_venv/
 .pytest_cache/
 .claude/
 CLAUDE.md
