@@ -13,7 +13,7 @@ def solver(map: Map) -> Path:
     pq = [(0, 0, start.name, start)]  # initializes pq
     visited: set[Hub] = set()
     came_from: dict[Hub, Hub] = {}
-    cost_so_far: dict[Hub, int] = {start: 0}
+    cost_so_far: dict[Hub, int] = {start: 0}  # pyright: ignore
 
     while pq:
         cost, priority_cost, _, current_hub = heappop(pq)

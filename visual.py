@@ -114,7 +114,7 @@ class Visualizer:
                 WIN, c, arc_rect, start_angle, stop_angle, HUB_SIZE
             )
 
-    def _draw_map(self) -> None:
+    def _draw_hubs(self) -> None:
         for hub, pos in self.reshaped_map.items():
             if hub.color == 'rainbow':
                 self._draw_rainbow_hub(pos)
@@ -199,7 +199,7 @@ class Visualizer:
     def _draw_window(self, t: float) -> None:
         WIN.blit(SPACE, (0, 0))
         self._draw_connections()
-        self._draw_map()
+        self._draw_hubs()
         self._draw_hub_names()
         self._draw_drones(t)
         self._draw_turn_counter()
@@ -236,7 +236,5 @@ class Visualizer:
                     else:
                         self.playing = False
 
-            # t=0 when paused — drones rest at current turn positions
-            # t>0 when animating — drones lerp toward next turn positions
             t = self.frame_counter / FRAMES_PER_TURN
             self._draw_window(t)
