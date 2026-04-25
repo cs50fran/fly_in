@@ -30,8 +30,8 @@ make install
 Or manually:
 
 ```bash
-python -m venv .fly_venv
-source .fly_venv/bin/activate
+python -m venv fly_venv
+source fly_venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -140,5 +140,6 @@ Claude (Anthropic) was used during this project for the following tasks:
 - Helping draft this README according to the subject requirements.
 - Explaining edge cases in Dijkstra's algorithm and heap-based priority handling.
 - Suggesting fixes for identified bugs (reviewed and applied manually).
+- Pygame rendering, specially with coordinates location
 
 All generated suggestions were reviewed, tested, and understood before being incorporated. No code was copied without full comprehension.
