@@ -2,7 +2,7 @@ import pytest
 import os
 from validate_map import validate_map
 
-ERROR_MAPS_DIR = os.path.join(os.path.dirname(__file__), "../maps/error")
+ERROR_MAPS_DIR = os.path.join(os.path.dirname(__file__), "../tests/error")
 
 
 def get_error_maps() -> list[str]:
@@ -15,5 +15,5 @@ def get_error_maps() -> list[str]:
 
 @pytest.mark.parametrize("map_path", get_error_maps())
 def test_error_maps_raise(map_path: str) -> None:
-    with pytest.raises((ValueError, Exception)):
+    with pytest.raises((ValueError)):
         validate_map(map_path)

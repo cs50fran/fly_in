@@ -201,6 +201,11 @@ def validate_map(map_path: str) -> Map:
                         f"line: {line_no}"
                     )
                 nb_drones = int(values.strip())
+                if nb_drones <= 0:
+                    raise ValueError(
+                        f"'nb_drones' must be a positive integer, "
+                        f"line: {line_no}"
+                    )
 
             elif key in valid_hub_keys:
                 try:

@@ -16,6 +16,9 @@ visual:
 debug:
 	$(BIN)/python -m pdb fly_in.py $(MAP)
 
+tests:
+	$(BIN)/pytest tests/
+
 lint:
 	$(BIN)/flake8 . --exclude=$(VENV),.pytest_cache,tests/.pytest_cache
 	$(BIN)/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
@@ -29,4 +32,4 @@ clean:
 	find . -type d -name .mypy_cache -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 
-.PHONY: install run debug lint lint-strict clean visual
+.PHONY: install run debug lint lint-strict clean visual tests
