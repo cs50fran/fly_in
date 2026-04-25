@@ -12,7 +12,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 ORANGE = (255, 165, 0)
 TURN_BAR_BG = (50, 50, 50)
-TURN_BAR_FG = (100, 200, 255)
+PINK = (255, 48, 168)
 
 # WINDOW DIMENSIONS
 WIDTH, HEIGHT = 1400, 800
@@ -33,6 +33,7 @@ FRAMES_PER_TURN = 60  # advance one turn per second
 # FONTS
 FONT_SMALL = pygame.font.SysFont("monospace", 12)
 FONT_MEDIUM = pygame.font.SysFont("monospace", 16)
+FONT_BIG = pygame.font.SysFont("monospace", 20)
 
 # DRONE INFO
 DRONE_SIZE = (30, 30)
@@ -46,6 +47,27 @@ DRONE.fill(WHITE, special_flags=pygame.BLEND_RGB_MULT)
 SPACE = pygame.transform.scale(
     pygame.image.load("assets/space.png"), (WIDTH, HEIGHT)
 )
+
+# ARROWS
+def draw_arrow(
+    x: int,
+    y: int,
+    color: tuple[int, int, int],
+    direction: str = "up",
+) -> None:
+    """Draw a small directional arrow with tip anchored at (x, y)."""
+    if direction == "up":
+        pygame.draw.line(WIN, color, (x, y + 14), (x, y + 2), 3)
+        pygame.draw.polygon(WIN, color, [(x, y), (x - 6, y + 8), (x + 6, y + 8)])
+    elif direction == "down":
+        pygame.draw.line(WIN, color, (x, y - 14), (x, y - 2), 3)
+        pygame.draw.polygon(WIN, color, [(x, y), (x - 6, y - 8), (x + 6, y - 8)])
+    elif direction == "left":
+        pygame.draw.line(WIN, color, (x + 14, y), (x + 2, y), 3)
+        pygame.draw.polygon(WIN, color, [(x, y), (x + 8, y - 6), (x + 8, y + 6)])
+    elif direction == "right":
+        pygame.draw.line(WIN, color, (x - 14, y), (x - 2, y), 3)
+        pygame.draw.polygon(WIN, color, [(x, y), (x - 8, y - 6), (x - 8, y + 6)])
 
 
 class Visualizer:
@@ -148,11 +170,7 @@ class Visualizer:
         pygame.draw.rect(WIN, TURN_BAR_BG, bg_rect, border_radius=4)
         if fill_w > 0:
             fg_rect = (bar_x, bar_y, fill_w, bar_h)
-            pygame.draw.rect(WIN, TURN_BAR_FG, fg_rect, border_radius=4)
-
-    # ADD drone_counter
-
-    # ADD is playing visualizer
+            pygame.draw.rect(WIN, PINK, fg_rect, border_radius=4)
 
     # If we could freeze the exact position would be amazing
 
@@ -196,17 +214,89 @@ class Visualizer:
                 curr_pos = start_pos.lerp(end_pos, t)
                 pygame.draw.circle(WIN, color, curr_pos, 5)
 
-    def _draw_window(self, t: float) -> None:
+
+   # ADD drone_counter
+    def draw_drone_counter(self):
+        total = self.map.nb_drones
+        arrived = len(self.turns[self.current_turn].get(self.map.end_hub, []))
+        label = FONT_MEDIUM.render(f"Arrived {arrived} / {total}", True, WHITE)
+
+        # Place counter at upper-right, just below the turn progress bar.
+        bar_w, bar_h = 170, 12
+        bar_x, bar_y = WIDTH - bar_w - 20, 60
+        label_x = bar_x + (bar_w - label.get_width()) // 2
+        WIN.blit(label, (label_x, 78))
+
+        fill_w = int(bar_w * (arrived / total)) if total > 0 else 0
+        bg_rect = (bar_x, bar_y, bar_w, bar_h)
+        pygame.draw.rect(WIN, TURN_BAR_BG, bg_rect, border_radius=4)
+        if fill_w > 0:
+            fg_rect = (bar_x, bar_y, fill_w, bar_h)
+            pygame.draw.rect(WIN, PINK, fg_rect, border_radius=4)
+
+    def draw_is_playing(self, playing: bool):
+        playing_label = FONT_BIG.render("playing...", True, PINK)
+        stoped_label = FONT_MEDIUM.render("press SPACEBAR", True, WHITE)
+        if playing:
+            label = playing_label
+        else:
+            label = stoped_label
+        
+        WIN.blit(label, (WIDTH - 155, 10))
+    
+    def draw_speed(self, playing: bool) -> None:
+        if playing:
+            up_label = FONT_MEDIUM.render(
+                "Press upward arrow to increase speed", True, WHITE
+            )
+            base_x, base_y = WIDTH - 420, HEIGHT - 95
+            draw_arrow(base_x + 10, base_y, PINK, "up")
+            WIN.blit(up_label, (base_x + 24, base_y))
+
+            down_label = FONT_MEDIUM.render(
+                "Press downward arrow to decrease speed", True, WHITE
+            )
+            down_y = base_y + 26
+            draw_arrow(base_x + 10, down_y + 20, PINK, "down")
+            WIN.blit(down_label, (base_x + 24, down_y + 5))
+
+    def draw_turn_navigation(self) -> None:
+        left_label = FONT_MEDIUM.render(
+            "Press left arrow to go back one turn", True, WHITE
+        )
+        right_label = FONT_MEDIUM.render(
+            "Press right arrow to advance one turn", True, WHITE
+        )
+        base_x, base_y = WIDTH - 420, HEIGHT - 95
+
+        # Left arrow icon
+        draw_arrow(base_x + 4, base_y + 10, PINK, "left")
+        WIN.blit(left_label, (base_x + 28, base_y))
+
+        # Right arrow icon
+        right_y = base_y + 26
+        draw_arrow(base_x + 22, right_y + 10, PINK, "right")
+        WIN.blit(right_label, (base_x + 28, right_y + 1))
+
+
+    def _draw_window(self, t: float, playing: bool) -> None:
         WIN.blit(SPACE, (0, 0))
         self._draw_connections()
         self._draw_hubs()
         self._draw_hub_names()
         self._draw_drones(t)
         self._draw_turn_counter()
+        self.draw_drone_counter()
+        self.draw_is_playing(playing)
+        if playing:
+            self.draw_speed(playing)
+        else:
+            self.draw_turn_navigation()
         pygame.display.update()
 
     def run(self) -> None:
         clock = pygame.Clock()
+        speed = 1
 
         while True:
             clock.tick(FPS)
@@ -226,9 +316,17 @@ class Visualizer:
                     if event.key == pygame.K_SPACE:
                         self.playing = not self.playing
                         self.frame_counter = 0
+                    if event.key == pygame.K_UP and self.playing:
+                        if speed < 4:
+                            speed += 1
+                    if event.key == pygame.K_DOWN and self.playing:
+                        if speed > 1:
+                            speed -= 1
+
+
 
             if self.playing:
-                self.frame_counter += 1
+                self.frame_counter += speed
                 if self.frame_counter >= FRAMES_PER_TURN:
                     self.frame_counter = 0
                     if self.current_turn < len(self.turns) - 1:
@@ -237,4 +335,4 @@ class Visualizer:
                         self.playing = False
 
             t = self.frame_counter / FRAMES_PER_TURN
-            self._draw_window(t)
+            self._draw_window(t, self.playing)
