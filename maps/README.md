@@ -28,7 +28,7 @@ This collection contains carefully crafted maps designed to test different aspec
 
 > ⚠️ **WARNING**: Challenger maps are designed to push algorithmic limits and may not be solvable by most implementations. They are intended for research, stress testing, and algorithmic exploration rather than validation. The goal is to challenge the boundaries of what's possible, not to pass evaluation criteria.
 
-> 🏆 **CHALLENGE RECORD**: The reference implementation solves "The Impossible Dream" in **41 turns**. Can you beat this record? This serves as a benchmark for algorithmic optimization and provides a concrete goal for advanced implementations.
+> 🏆 **CHALLENGE RECORD**: The reference implementation solves "The Impossible Dream" in **45 turns**. Can you beat this record? This serves as a benchmark for algorithmic optimization and provides a concrete goal for advanced implementations.
 
 ## Challenge Types Covered
 

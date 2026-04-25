@@ -38,20 +38,15 @@ pip install -r requirements.txt
 ### Running
 
 ```bash
-make run map=maps/easy/01_linear_path.txt
-```
-
-Or manually:
-
-```bash
-python fly_in.py <map_file>
-python fly_in.py <map_file> --visual   # with pygame visualizer
+make run                                      # default map
+make run MAP=maps/medium/01_dead_end_trap.txt # specific map
+make visual MAP=maps/easy/01_linear_path.txt  # with pygame visualizer
 ```
 
 ### Debugging
 
 ```bash
-make debug map=maps/easy/01_linear_path.txt
+make debug MAP=maps/easy/01_linear_path.txt
 ```
 
 ### Linting
@@ -80,7 +75,7 @@ make clean
 
 ### Pathfinding — Dijkstra's algorithm
 
-The solver (`solver/solver.py`) implements Dijkstra's algorithm on the zone graph. Each zone has a traversal cost determined by its type:
+The solver (`solver.py`) implements Dijkstra's algorithm on the zone graph. Each zone has a traversal cost determined by its type:
 
 | Zone type  | Cost   |
 |------------|--------|
@@ -95,7 +90,7 @@ Blocked zones are skipped entirely during neighbor expansion. The algorithm term
 
 ### Simulation — turn-by-turn scheduler
 
-The simulator (`turns/simulation.py`) moves all drones each turn following these rules:
+The simulator (`simulation.py`) moves all drones each turn following these rules:
 
 - **Zone capacity (`max_drones`)**: a drone may only move into a zone if the current occupancy is below the zone's limit. The start and end zones are exceptions — the start zone holds all drones initially, and multiple drones may arrive at the end zone.
 - **Connection capacity (`max_link_capacity`)**: at most one drone per turn may traverse a given connection (default). Higher capacities, when configured, allow multiple drones to cross simultaneously.
@@ -114,7 +109,7 @@ All drones share a single pre-computed path. The simulation ends when all drones
 
 ## Visual Representation
 
-The pygame visualizer (`visual/visual.py`) renders the network and drone positions in real time. Key features:
+The pygame visualizer (`visual.py`) renders the network and drone positions in real time. Key features:
 
 - **Graph layout**: zone coordinates from the map file are scaled and padded to fit the window. Each zone is drawn as a labeled circle; connections are drawn as lines between them.
 - **Zone coloring**: zones use the color specified in the map metadata (e.g., `color=red`). Zones without a color default to white.
@@ -145,5 +140,6 @@ Claude (Anthropic) was used during this project for the following tasks:
 - Helping draft this README according to the subject requirements.
 - Explaining edge cases in Dijkstra's algorithm and heap-based priority handling.
 - Suggesting fixes for identified bugs (reviewed and applied manually).
+- Pygame rendering, specially with coordinates location
 
 All generated suggestions were reviewed, tested, and understood before being incorporated. No code was copied without full comprehension.

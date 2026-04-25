@@ -205,15 +205,16 @@ def validate_map(map_path: str) -> Map:
             elif key in valid_hub_keys:
                 try:
                     if key in ("start_hub", "end_hub"):
-                        raw = validate_and_build_hub(values.strip())
+                        raw_hub = validate_and_build_hub(values.strip())
                         if (
                             'max_drones' in values
                             and nb_drones is not None
-                            and raw.max_drones < nb_drones
+                            and raw_hub.max_drones < nb_drones
                         ):
                             raise ValueError(
-                                f"{key} max_drones ({raw.max_drones}) "
+                                f"{key} max_drones ({raw_hub.max_drones}) "
                                 f"must be >= nb_drones ({nb_drones})"
+                                f"line: {line_no}"
                             )
                         new_hub = validate_and_build_hub(
                             values.strip(), max_drones_override=nb_drones)

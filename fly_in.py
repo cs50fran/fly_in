@@ -1,26 +1,21 @@
 import os
 import sys
-from parser.validate_maps import validate_map
-from solver.solver import solver
-from turns.simulation import Simulator
-from visual.visual import Visualizer
+from validate_map import validate_map
+from solver import solver
+from simulation import Simulator
+from visual import Visualizer
 
 
 if __name__ == "__main__":
-    visual = False
-    if len(sys.argv) < 2:
-        print("Usage: python fly_in.py <map_file>")
-        sys.exit(1)
-    elif len(sys.argv) == 3:
-        visual = False
-        if sys.argv[2] == "--visual":
-            visual = True
-        else:
-            print("Usage: python fly_in.py <map_file> (--visual)")
-            sys.exit(1)
+    usage = "Usage: python fly_in.py <map_file> [--visual]"
 
-    elif len(sys.argv) > 3:
-        print("Usage: python fly_in.py <map_file> (--visual)")
+    if len(sys.argv) not in (2, 3):
+        print(usage)
+        sys.exit(1)
+
+    visual = len(sys.argv) == 3
+    if visual and sys.argv[2] != "--visual":
+        print(usage)
         sys.exit(1)
 
     map_path = sys.argv[1]

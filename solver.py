@@ -10,10 +10,10 @@ def solver(map: Map) -> Path:
     start = map.start_hub
     end = map.end_hub
 
-    pq = [(0, 0, start.name, start)]
+    pq = [(0, 0, start.name, start)]  # initializes pq
     visited: set[Hub] = set()
     came_from: dict[Hub, Hub] = {}
-    cost_so_far: dict[str, int] = {start.name: 0}
+    cost_so_far: dict[Hub, int] = {start: 0}  # pyright: ignore
 
     while pq:
         cost, priority_cost, _, current_hub = heappop(pq)
@@ -29,8 +29,8 @@ def solver(map: Map) -> Path:
             if n.zone_type == ZoneType.blocked:
                 continue
             new_cost = cost + n.get_cost()
-            if new_cost < cost_so_far.get(n.name, float('inf')):
-                cost_so_far[n.name] = new_cost
+            if new_cost < cost_so_far.get(n, float('inf')):
+                cost_so_far[n] = new_cost
                 priority_cost = -1 if n.zone_type == ZoneType.priority else 0
                 came_from[n] = current_hub
                 heappush(pq, (new_cost, priority_cost, n.name, n))
@@ -39,8 +39,6 @@ def solver(map: Map) -> Path:
         raise ValueError("No path found from start to end")
     path = []
     current = end
-    # print(f"Came_from = {came_from}")
-    # print(f"Debug, curren: {current}")
     while current != start:
         path.append(current)
         current = came_from[current]

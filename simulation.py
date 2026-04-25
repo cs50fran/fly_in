@@ -32,7 +32,7 @@ class Simulator:
         in_transit_turns: list[set[int]] = []
         output: list[str] = []
         end = self.map.end_hub
-        # Drones currently in transit TO each hub (connection occupancy)
+        # Drones currently in transit to each hub (connection occupancy)
         transiting_to: dict[Hub, int] = {h: 0 for h in self.map.hubs}
 
         snap, in_transit = self._snapshot(drones)
@@ -41,6 +41,7 @@ class Simulator:
 
         while self.hub_occ.get(end, 0) < self.nb_drones:
             turn_moves: list[str] = []
+            link_used: dict[tuple[str, str], int] = {}
 
             for drone in drones:
                 if drone.arrived:
@@ -59,8 +60,7 @@ class Simulator:
                     turn_moves.append(move)
                     continue
 
-                next_hub = drone.next_hub
-                if next_hub is None:
+                if (next_hub := drone.next_hub) is None:
                     continue
 
                 if next_hub.zone_type == ZoneType.restricted:
@@ -74,9 +74,15 @@ class Simulator:
                     move = f"D{drone.drone_id}-{origin}-{next_hub.name}"
                     turn_moves.append(move)
                 else:
-                    # Normal move: check hub capacity
+                    # Normal move: check hub capacity and connection capacity
                     if self.hub_occ.get(next_hub, 0) >= next_hub.max_drones:
                         continue  # next hub full, drone waits
+                    conn = self.map.get_connection(drone.current_hub, next_hub)
+                    a, b = sorted([drone.current_hub.name, next_hub.name])
+                    link_key = (a, b)
+                    if link_used.get(link_key, 0) >= conn.max_link_capacity:
+                        continue  # connection at capacity, drone waits
+                    link_used[link_key] = link_used.get(link_key, 0) + 1
                     self.hub_occ[drone.current_hub] -= 1
                     drone.move()
                     self.hub_occ[drone.current_hub] += 1
