@@ -48,6 +48,7 @@ SPACE = pygame.transform.scale(
     pygame.image.load("assets/space.png"), (WIDTH, HEIGHT)
 )
 
+
 # ARROWS
 def draw_arrow(
     x: int,
@@ -58,16 +59,24 @@ def draw_arrow(
     """Draw a small directional arrow with tip anchored at (x, y)."""
     if direction == "up":
         pygame.draw.line(WIN, color, (x, y + 14), (x, y + 2), 3)
-        pygame.draw.polygon(WIN, color, [(x, y), (x - 6, y + 8), (x + 6, y + 8)])
+        pygame.draw.polygon(
+            WIN, color, [(x, y), (x - 6, y + 8), (x + 6, y + 8)]
+        )
     elif direction == "down":
         pygame.draw.line(WIN, color, (x, y - 14), (x, y - 2), 3)
-        pygame.draw.polygon(WIN, color, [(x, y), (x - 6, y - 8), (x + 6, y - 8)])
+        pygame.draw.polygon(
+            WIN, color, [(x, y), (x - 6, y - 8), (x + 6, y - 8)]
+        )
     elif direction == "left":
         pygame.draw.line(WIN, color, (x + 14, y), (x + 2, y), 3)
-        pygame.draw.polygon(WIN, color, [(x, y), (x + 8, y - 6), (x + 8, y + 6)])
+        pygame.draw.polygon(
+            WIN, color, [(x, y), (x + 8, y - 6), (x + 8, y + 6)]
+        )
     elif direction == "right":
         pygame.draw.line(WIN, color, (x - 14, y), (x - 2, y), 3)
-        pygame.draw.polygon(WIN, color, [(x, y), (x - 8, y - 6), (x - 8, y + 6)])
+        pygame.draw.polygon(
+            WIN, color, [(x, y), (x - 8, y - 6), (x - 8, y + 6)]
+        )
 
 
 class Visualizer:
@@ -214,9 +223,8 @@ class Visualizer:
                 curr_pos = start_pos.lerp(end_pos, t)
                 pygame.draw.circle(WIN, color, curr_pos, 5)
 
-
-   # ADD drone_counter
-    def draw_drone_counter(self):
+    # ADD drone_counter
+    def draw_drone_counter(self) -> None:
         total = self.map.nb_drones
         arrived = len(self.turns[self.current_turn].get(self.map.end_hub, []))
         label = FONT_MEDIUM.render(f"Arrived {arrived} / {total}", True, WHITE)
@@ -234,16 +242,16 @@ class Visualizer:
             fg_rect = (bar_x, bar_y, fill_w, bar_h)
             pygame.draw.rect(WIN, PINK, fg_rect, border_radius=4)
 
-    def draw_is_playing(self, playing: bool):
+    def draw_is_playing(self, playing: bool) -> None:
         playing_label = FONT_BIG.render("playing...", True, PINK)
         stoped_label = FONT_MEDIUM.render("press SPACEBAR", True, WHITE)
         if playing:
             label = playing_label
         else:
             label = stoped_label
-        
+
         WIN.blit(label, (WIDTH - 155, 10))
-    
+
     def draw_speed(self, playing: bool) -> None:
         if playing:
             up_label = FONT_MEDIUM.render(
@@ -277,7 +285,6 @@ class Visualizer:
         right_y = base_y + 26
         draw_arrow(base_x + 22, right_y + 10, PINK, "right")
         WIN.blit(right_label, (base_x + 28, right_y + 1))
-
 
     def _draw_window(self, t: float, playing: bool) -> None:
         WIN.blit(SPACE, (0, 0))
@@ -322,8 +329,6 @@ class Visualizer:
                     if event.key == pygame.K_DOWN and self.playing:
                         if speed > 1:
                             speed -= 1
-
-
 
             if self.playing:
                 self.frame_counter += speed
