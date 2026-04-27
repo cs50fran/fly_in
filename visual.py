@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+from collections import deque
 from models.map import Map
 from models.path import Path
 from models.hub import Hub, ZoneType
@@ -36,6 +37,7 @@ pygame.display.set_caption("Fly-in")
 HUB_SIZE = 22
 FPS = 60
 FRAMES_PER_TURN = 60
+TRAIL_LENGTH = 20
 
 # ── Fonts ───────────────────────────────────────────────────────────────────
 FONT_TINY = pygame.font.SysFont("monospace", 10)
@@ -143,6 +145,41 @@ class Particle:
         surface.blit(buf, (int(self.x) - sz - 1, int(self.y) - sz - 1))
 
 
+# ── Ring (shockwave) ─────────────────────────────────────────────────────────
+class Ring:
+    __slots__ = ("x", "y", "color", "max_r", "life", "max_life", "width")
+
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        color: tuple[int, int, int],
+        max_r: int = 90,
+        life: int = 45,
+        width: int = 2,
+    ) -> None:
+        self.x, self.y = x, y
+        self.color = color
+        self.max_r = max_r
+        self.life = life
+        self.max_life = life
+        self.width = width
+
+    def update(self) -> bool:
+        self.life -= 1
+        return self.life > 0
+
+    def draw(self, surface: pygame.Surface) -> None:
+        ratio = 1.0 - self.life / self.max_life
+        r = int(self.max_r * ratio)
+        a = int(200 * self.life / self.max_life)
+        if r < 2:
+            return
+        rs = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(rs, (*self.color, a), (r + 2, r + 2), r, self.width)
+        surface.blit(rs, (int(self.x) - r - 2, int(self.y) - r - 2))
+
+
 # ── Star field ───────────────────────────────────────────────────────────────
 class Star:
     __slots__ = ("x", "y", "speed", "size", "brightness", "phase")
@@ -194,7 +231,6 @@ class Visualizer:
             hub.name: coords for hub, coords in self.reshaped_map.items()
         }
 
-        # Path edges for highlighting
         self.path_edges: set[frozenset] = set()
         ph = path.hubs
         for i in range(len(ph) - 1):
@@ -204,6 +240,33 @@ class Visualizer:
         self.stars: list[Star] = [Star() for _ in range(180)]
         self._prev_arrived: int = 0
         self._drone_angles: dict[int, float] = {}
+        self._rings: list[Ring] = []
+        self._drone_history: dict[int, deque] = {}
+
+        # Lightning
+        self._lightning_cache: dict[frozenset, list[list[tuple[int, int]]]] = {}
+        self._lightning_timer: int = 0
+        self._lightning_surf: pygame.Surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+
+        # Active edge flare
+        self._active_edges: set[frozenset] = set()
+
+        # Impact flash
+        self._flash_alpha: int = 0
+
+        # Speed lines
+        self._speed_surf: pygame.Surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self._speed_phase: float = 0.0
+
+        # Scanlines (built once)
+        self._scanline_surf: pygame.Surface = self._build_scanlines()
+
+        # Mission complete
+        self._mission_complete: bool = False
+        self._mission_complete_tick: int = 0
+        _mfont = pygame.font.SysFont("monospace", 64, bold=True)
+        self._mission_label: pygame.Surface = _mfont.render("MISSION COMPLETE", True, GOLD)
+        self._mission_glow: pygame.Surface = _mfont.render("MISSION COMPLETE", True, PINK)
 
     # ── Map reshape ───────────────────────────────────────────────────────
     def _reshape_map(self) -> dict[Hub, tuple[int, int]]:
@@ -227,6 +290,25 @@ class Visualizer:
             result[hub] = (x, y)
         return result
 
+    # ── Scanlines ─────────────────────────────────────────────────────────
+    def _build_scanlines(self) -> pygame.Surface:
+        surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        for y in range(0, HEIGHT, 3):
+            pygame.draw.line(surf, (0, 0, 0, 38), (0, y), (WIDTH, y))
+        return surf
+
+    def _draw_scanlines(self) -> None:
+        WIN.blit(self._scanline_surf, (0, 0))
+
+    # ── Flash ─────────────────────────────────────────────────────────────
+    def _draw_flash(self) -> None:
+        if self._flash_alpha <= 0:
+            return
+        flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        flash.fill((220, 160, 255, self._flash_alpha))
+        WIN.blit(flash, (0, 0))
+        self._flash_alpha = max(0, self._flash_alpha - 11)
+
     # ── Background ────────────────────────────────────────────────────────
     def _draw_background(self) -> None:
         WIN.blit(SPACE, (0, 0))
@@ -234,16 +316,68 @@ class Visualizer:
             star.update()
             star.draw(WIN, self.tick)
 
+    # ── Lightning helpers ─────────────────────────────────────────────────
+    def _build_lightning(self, p1: tuple, p2: tuple, segs: int = 8) -> list[list[tuple[int, int]]]:
+        dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+        length = math.hypot(dx, dy) or 1
+        px, py = -dy / length, dx / length
+
+        def make_bolt() -> list[tuple[int, int]]:
+            pts = [p1]
+            for i in range(1, segs):
+                t = i / segs
+                bx = p1[0] + dx * t
+                by = p1[1] + dy * t
+                off = random.gauss(0, length * 0.07)
+                pts.append((int(bx + px * off), int(by + py * off)))
+            pts.append(p2)
+            return pts
+
+        return [make_bolt(), make_bolt()]
+
+    def _draw_lightning_on(self, surf: pygame.Surface, pts: list[tuple[int, int]], color: tuple, alpha: int) -> None:
+        for i in range(len(pts) - 1):
+            pygame.draw.line(surf, (*color, alpha), pts[i], pts[i + 1], 1)
+
+    # ── Active edge pre-pass ──────────────────────────────────────────────
+    def _compute_active_edges(self, t: float) -> None:
+        if t <= 0:
+            self._active_edges = set()
+            return
+        current_pos = self._drone_positions(self.current_turn)
+        next_pos = (
+            self._drone_positions(self.current_turn + 1)
+            if self.current_turn + 1 < len(self.turns)
+            else current_pos
+        )
+        self._active_edges = set()
+        for drone_id, curr_hub in current_pos.items():
+            next_hub = next_pos.get(drone_id, curr_hub)
+            if curr_hub != next_hub:
+                self._active_edges.add(frozenset({curr_hub.name, next_hub.name}))
+
     # ── Connections ───────────────────────────────────────────────────────
     def _draw_connections(self) -> None:
         flow = (self.tick * 2) % 60
+        refresh = self._lightning_timer % 5 == 0
+        self._lightning_timer += 1
+
+        self._lightning_surf.fill((0, 0, 0, 0))
 
         for c in self.map.connections:
             p1 = self.names_and_coords[c.zone1]
             p2 = self.names_and_coords[c.zone2]
-            on_path = frozenset({c.zone1, c.zone2}) in self.path_edges
+            key = frozenset({c.zone1, c.zone2})
+            on_path = key in self.path_edges
+            active = key in self._active_edges
 
             if on_path:
+                # Active edge flare — blaze white when a drone traverses it
+                if active:
+                    pygame.draw.line(WIN, (255, 255, 220), p1, p2, 6)
+                    mid = ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
+                    blit_glow(WIN, WHITE, mid, 40, 140)
+
                 # Deep glow track
                 pygame.draw.line(WIN, (10, 50, 90), p1, p2, 10)
                 pygame.draw.line(WIN, (15, 80, 140), p1, p2, 6)
@@ -257,15 +391,26 @@ class Visualizer:
                     ux, uy = dx / length, dy / length
                     for d in range(0, int(length), 24):
                         offset = (d + flow) % length
-                        px = int(p1[0] + ux * offset)
-                        py = int(p1[1] + uy * offset)
+                        fpx = int(p1[0] + ux * offset)
+                        fpy = int(p1[1] + uy * offset)
                         fade = math.sin(math.pi * offset / length)
                         a = int(200 * fade)
                         dot = pygame.Surface((8, 8), pygame.SRCALPHA)
                         pygame.draw.circle(dot, (*CYAN, a), (4, 4), 4)
-                        WIN.blit(dot, (px - 4, py - 4))
+                        WIN.blit(dot, (fpx - 4, fpy - 4))
+
+                # Lightning arcs
+                if refresh or key not in self._lightning_cache:
+                    self._lightning_cache[key] = self._build_lightning(p1, p2)
+                bolts = self._lightning_cache[key]
+                pulse_a = int(110 + 60 * math.sin(self.tick * 0.22))
+                for bolt in bolts:
+                    self._draw_lightning_on(self._lightning_surf, bolt, CYAN, pulse_a)
+                    self._draw_lightning_on(self._lightning_surf, bolt, (180, 240, 255), pulse_a // 2)
             else:
                 pygame.draw.line(WIN, (45, 55, 85), p1, p2, 3)
+
+        WIN.blit(self._lightning_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
     # ── Hubs ──────────────────────────────────────────────────────────────
     def _drone_count_at(self, hub: Hub) -> int:
@@ -331,6 +476,16 @@ class Visualizer:
                 border = tuple(min(255, v + 55) for v in fill[:3])
                 pygame.draw.circle(WIN, border, pos, HUB_SIZE, 2)
 
+            # Overcrowding alarm — red pulsing ring + jitter when at capacity
+            if hub.max_drones > 0 and n >= hub.max_drones:
+                wp = 0.5 + 0.5 * math.sin(self.tick * 0.35)
+                wr = HUB_SIZE + 12 + int(6 * wp)
+                wa = int(80 + 90 * wp)
+                pygame.draw.circle(WIN, (255, 40, 40), pos, wr, 3)
+                blit_glow(WIN, (255, 40, 40), pos, wr + 12, wa)
+                jpos = (pos[0] + random.randint(-2, 2), pos[1] + random.randint(-2, 2))
+                pygame.draw.circle(WIN, (255, 100, 100), jpos, wr + 5, 1)
+
             # Start / end label + extra glow
             if hub == self.map.start_hub:
                 blit_glow(WIN, GREEN, pos, HUB_SIZE + 28, 75)
@@ -350,6 +505,27 @@ class Visualizer:
             lx = pos[0] - label.get_width() // 2
             WIN.blit(label, (lx, pos[1] + HUB_SIZE + 8))
 
+    # ── Speed lines ───────────────────────────────────────────────────────
+    def _draw_speed_lines(self, speed: int) -> None:
+        if speed < 3:
+            return
+        self._speed_phase = (self._speed_phase + speed * 0.9) % 360
+        cx, cy = WIDTH // 2, HEIGHT // 2
+        self._speed_surf.fill((0, 0, 0, 0))
+        n_lines = 60
+        spread = (speed - 2) * 100
+        for i in range(n_lines):
+            angle = math.radians(360 / n_lines * i + self._speed_phase)
+            inner = random.uniform(55, 110)
+            outer = inner + random.uniform(30, spread)
+            a = random.randint(20, 75)
+            x1 = int(cx + math.cos(angle) * inner)
+            y1 = int(cy + math.sin(angle) * inner)
+            x2 = int(cx + math.cos(angle) * outer)
+            y2 = int(cy + math.sin(angle) * outer)
+            pygame.draw.line(self._speed_surf, (*WHITE, a), (x1, y1), (x2, y2), 1)
+        WIN.blit(self._speed_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
     # ── Drones ────────────────────────────────────────────────────────────
     def _drone_positions(self, turn_index: int) -> dict[int, Hub]:
         result: dict[int, Hub] = {}
@@ -357,6 +533,27 @@ class Visualizer:
             for drone_id in ids:
                 result[drone_id] = hub
         return result
+
+    def _draw_warp_trail(self, drone_id: int, current_pos: tuple[float, float], trail_surf: pygame.Surface) -> None:
+        hist = self._drone_history.get(drone_id)
+        if not hist or len(hist) < 2:
+            return
+        pts = list(hist) + [current_pos]
+        n = len(pts)
+        for i in range(1, n):
+            ratio = i / n
+            a = int(200 * ratio)
+            w = max(1, int(5 * ratio))
+            r = int(80 * (1 - ratio) + 180 * ratio)
+            g = int(220 * ratio)
+            b = 255
+            if i > 1:
+                p_prev = pts[i - 1]
+                pygame.draw.line(trail_surf, (r, g, b, a // 2),
+                                 (int(p_prev[0]), int(p_prev[1])),
+                                 (int(pts[i][0]), int(pts[i][1])), w)
+            pygame.draw.circle(trail_surf, (r, g, b, a),
+                                (int(pts[i][0]), int(pts[i][1])), w)
 
     def _draw_drones(self, t: float) -> None:
         current_pos = self._drone_positions(self.current_turn)
@@ -372,7 +569,7 @@ class Visualizer:
         else:
             in_transit = self.in_transit_turns[self.current_turn]
 
-        # Arrival burst
+        # Arrival burst + rings + flash
         arrived_now = len(self.turns[self.current_turn].get(self.map.end_hub, []))
         if arrived_now > self._prev_arrived:
             ep = self.names_and_coords[self.map.end_hub.name]
@@ -380,7 +577,23 @@ class Visualizer:
                 self.particles.append(Particle(ep[0], ep[1], PINK, 4, 3.5))
                 self.particles.append(Particle(ep[0], ep[1], GOLD, 3, 2.5))
                 self.particles.append(Particle(ep[0], ep[1], WHITE, 2, 2.0))
+            for max_r, color in [(70, PINK), (110, CYAN), (150, GOLD)]:
+                self._rings.append(Ring(ep[0], ep[1], color, max_r=max_r, life=50))
+            self._flash_alpha = min(180, self._flash_alpha + 90)
+
+            # Mission complete trigger
+            if not self._mission_complete and arrived_now >= self.map.nb_drones:
+                self._mission_complete = True
+                self._mission_complete_tick = self.tick
+                self._flash_alpha = 200
+                for i, color in enumerate([WHITE, PINK, CYAN, GOLD, PURPLE]):
+                    self._rings.append(Ring(ep[0], ep[1], color,
+                                            max_r=160 + i * 45, life=75, width=3))
+
         self._prev_arrived = arrived_now
+
+        trail_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        drone_draws = []
 
         for drone_id, curr_hub in current_pos.items():
             next_hub = next_pos.get(drone_id, curr_hub)
@@ -391,16 +604,24 @@ class Visualizer:
             ev = pygame.math.Vector2(self.reshaped_map[next_hub])
             pv = sv.lerp(ev, t) if moving else sv
 
-            # Trail particles
+            if drone_id not in self._drone_history:
+                self._drone_history[drone_id] = deque(maxlen=TRAIL_LENGTH)
+            if moving:
+                self._drone_history[drone_id].append((pv.x, pv.y))
+
+            self._draw_warp_trail(drone_id, (pv.x, pv.y), trail_surf)
+            drone_draws.append((drone_id, pv, sv, ev, is_transit, moving))
+
+        WIN.blit(trail_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+        for drone_id, pv, sv, ev, is_transit, moving in drone_draws:
             if moving and t > 0 and random.random() < 0.45:
                 col = ORANGE if is_transit else CYAN
                 self.particles.append(Particle(pv.x, pv.y, col, 2.5, 0.9))
 
-            # Drone glow
             gc = ORANGE if is_transit else CYAN
             blit_glow(WIN, gc, (int(pv.x), int(pv.y)), 24, 130)
 
-            # Rotate sprite to face movement direction
             if moving:
                 dx = ev.x - sv.x
                 dy = ev.y - sv.y
@@ -422,6 +643,54 @@ class Visualizer:
         self.particles = [p for p in self.particles if p.update()]
         for p in self.particles:
             p.draw(WIN)
+
+    # ── Rings ─────────────────────────────────────────────────────────────
+    def _update_and_draw_rings(self) -> None:
+        self._rings = [r for r in self._rings if r.update()]
+        for r in self._rings:
+            r.draw(WIN)
+
+    # ── Mission complete ──────────────────────────────────────────────────
+    def _draw_mission_complete(self) -> None:
+        if not self._mission_complete:
+            return
+        age = self.tick - self._mission_complete_tick
+
+        # Continuous celebration from end hub
+        if age % 10 == 0:
+            ep = self.names_and_coords[self.map.end_hub.name]
+            for color in [PINK, CYAN, GOLD, GREEN, PURPLE]:
+                self._rings.append(Ring(
+                    ep[0] + random.gauss(0, 28),
+                    ep[1] + random.gauss(0, 28),
+                    color,
+                    max_r=random.randint(50, 130),
+                    life=45,
+                ))
+            for _ in range(8):
+                self.particles.append(
+                    Particle(ep[0], ep[1], random.choice([PINK, GOLD, CYAN, WHITE]), 4, 5.0)
+                )
+
+        # Text slide-in from top, cubic ease-out
+        slide_t = min(1.0, age / 45)
+        ease = 1.0 - (1.0 - slide_t) ** 3
+        lbl_h = self._mission_label.get_height()
+        lbl_w = self._mission_label.get_width()
+        target_y = HEIGHT // 2 - lbl_h // 2
+        y = int(-lbl_h + (target_y + lbl_h) * ease)
+        x = WIDTH // 2 - lbl_w // 2
+        alpha = int(255 * ease)
+
+        glow_pulse = 0.6 + 0.4 * math.sin(self.tick * 0.12)
+        glow = self._mission_glow.copy()
+        glow.set_alpha(int(alpha * 0.45 * glow_pulse))
+        WIN.blit(glow, (x - 5, y - 5))
+        WIN.blit(glow, (x + 5, y + 5))
+
+        lbl = self._mission_label.copy()
+        lbl.set_alpha(alpha)
+        WIN.blit(lbl, (x, y))
 
     # ── HUD ───────────────────────────────────────────────────────────────
     def _draw_turn_bar(self) -> None:
@@ -470,7 +739,6 @@ class Visualizer:
         WIN.blit(fly_lbl, (px + 10, py + 42))
         WIN.blit(total_lbl, (px + 10, py + 62))
 
-        # Compact arrival bar
         bar_x = px + 10
         bar_y = py + ph - 12
         bar_w = pw - 20
@@ -503,7 +771,6 @@ class Visualizer:
             WIN.blit(kl, (px + 10, py + 8 + i * 22))
             WIN.blit(dl, (px + pw // 2, py + 8 + i * 22))
 
-        # State badge
         if playing:
             pulse = 0.6 + 0.4 * math.sin(self.tick * 0.18)
             col = tuple(int(v * pulse) for v in PINK)
@@ -517,15 +784,21 @@ class Visualizer:
 
     # ── Main frame ────────────────────────────────────────────────────────
     def _draw_window(self, t: float, playing: bool, speed: int) -> None:
+        self._compute_active_edges(t)
         self._draw_background()
         self._draw_connections()
         self._draw_hubs()
         self._draw_hub_names()
+        self._draw_speed_lines(speed)
         self._draw_drones(t)
+        self._update_and_draw_rings()
         self._update_and_draw_particles()
+        self._draw_mission_complete()
+        self._draw_flash()
         self._draw_turn_bar()
         self._draw_drone_counter()
         self._draw_controls(playing, speed)
+        self._draw_scanlines()
         pygame.display.update()
 
     def run(self) -> None:

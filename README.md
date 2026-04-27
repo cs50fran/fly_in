@@ -2,6 +2,10 @@
 
 # Fly-in
 
+> **Branch note:** This branch (`claude_goes_crazy`) contains an enhanced visual built in collaboration with [Claude](https://claude.ai) (Anthropic). The original version — written entirely by the author — lives on the [`main`](../../tree/main) branch.
+
+![Demo](demo.gif)
+
 ## Description
 
 Fly-in is a drone routing simulation. Given a map file describing a network of zones and connections, the program:
@@ -143,3 +147,7 @@ Claude (Anthropic) was used during this project for the following tasks:
 - Pygame rendering, specially with coordinates location
 
 All generated suggestions were reviewed, tested, and understood before being incorporated. No code was copied without full comprehension.
+
+#### Branch `claude_goes_crazy`
+
+The visual renderer on this branch was built iteratively with Claude via Claude Code. Effects include: lightning arcs on path connections, warp trails on drones, shockwave rings on arrivals, hub overcrowding alarms, speed lines at high playback speed, a CRT scanline overlay, an impact flash, and a "MISSION COMPLETE" celebration sequence. The simulation logic, pathfinding, and map validation are unchanged from `main`.
