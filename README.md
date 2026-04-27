@@ -2,7 +2,7 @@
 
 # Fly-in
 
-> **Branch note:** This branch (`claude_goes_crazy`) contains an enhanced visual built in collaboration with [Claude](https://claude.ai) (Anthropic). The original version — written entirely by the author — lives on the [`main`](../../tree/main) branch.
+> **Branch note:** This branch (`main`) contains an enhanced visual built in collaboration with [Claude](https://claude.ai) (Anthropic). The original version — written entirely by the author — lives on the [`original`](../../tree/original) branch.
 
 | Easy | Hard |
 |------|------|
