@@ -4,7 +4,9 @@
 
 > **Branch note:** This branch (`claude_goes_crazy`) contains an enhanced visual built in collaboration with [Claude](https://claude.ai) (Anthropic). The original version — written entirely by the author — lives on the [`main`](../../tree/main) branch.
 
-![Demo](demo.gif)
+| Easy | Hard |
+|------|------|
+| ![Easy](assets/easy.gif) | ![Hard](assets/hard.gif) |
 
 ## Description
 
